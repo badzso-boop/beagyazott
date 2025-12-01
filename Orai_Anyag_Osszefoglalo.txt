@@ -1,0 +1,128 @@
+/*
+ * BEÁGYAZOTT RENDSZEREK - GYAKORLATI ÖSSZEFOGLALÓ
+ * ================================================
+ * Ez a fájl tartalmazza azokat a kódrészleteket (építőkockákat), 
+ * amelyeket a ZH-n használni kell.
+ * 
+ * FORRÁSOK (Kód és Dia):
+ * ----------------------
+ * Csak az órai anyagokból dolgozunk! A kódok mellé odaírtam, 
+ * hogy melyik PDF-ben található a hozzá tartozó elméleti magyarázat.
+ */
+
+// ================================================================
+// 1. IDŐZÍTÉS (Szoftveres Timer)
+// Kód forrás: 9. ora/sketch_nov5a
+// Elméleti háttér (Dia): 8. ora/Delay, Millis, Timer modul működésének áttekintése.pdf
+// ================================================================
+
+// Időzítő struktúra definíciója
+typedef struct {
+  unsigned long prevTime; // Utolsó lefutás ideje
+  int deltaTime;          // Időzítés hossza (ms)
+} Timer_s;
+
+// Időzítő példányosítása (Példa: 1 másodperces timer)
+Timer_s MyTimer = {
+  .prevTime = 0,
+  .deltaTime = 1000
+};
+
+// Időzítő ellenőrző függvény
+// Visszatér 1-gyel, ha letelt az idő, és frissíti a prevTime-ot
+unsigned char CheckTimer(Timer_s *timer) {
+  unsigned long actTime = millis();
+  if(actTime - timer->prevTime > timer->deltaTime) {
+    timer->prevTime = actTime;
+    return 1; // Eltelt az idő
+  }
+  return 0; // Még nem telt el
+}
+
+// ================================================================
+// 2. ÁLLAPOTGÉP (State Machine)
+// Kód forrás: 9. ora/sketch_nov5a
+// Elméleti háttér (Dia): 9. ora/Finite_State_Machine.pdf
+// ================================================================
+
+// Állapotok felsorolása
+typedef enum {
+  STATE_IDLE,
+  STATE_MEASURE,
+  STATE_ALARM
+} State_e;
+
+// Kezdőállapot beállítása
+State_e State = STATE_IDLE;
+
+/*
+Használat a loop()-ban:
+switch (State) {
+  case STATE_IDLE:
+    // Cselekvés...
+    // Átmenet feltétele...
+    break;
+  ...
+}
+*/
+
+// ================================================================
+// 3. SZŰRÉS: ADATGYŰJTÉS ÉS RENDEZÉS 
+// Kód forrás: 10. ora/sketch_nov12a
+// Elméleti háttér (Dia): 10. ora/tavolsagmero.pdf (Zajszűrés és medián elv)
+// ================================================================
+
+#define BUFFER_SIZE 20
+int buffer[BUFFER_SIZE];      // Nyers adatok
+int bufferCopy[BUFFER_SIZE];  // Másolat a rendezéshez
+
+// Új adat hozzáadása a tömbhöz (csúszóablak elv - "FIFO szerű")
+// A legrégebbi elem kiesik, az újak hátrébb csúsznak
+void addSimple(int data) {
+  for(byte i = 0; i < BUFFER_SIZE-1; i++) {
+    buffer[i] = buffer[i+1];
+  }
+  buffer[BUFFER_SIZE-1] = data;
+}
+
+// Buborékrendezés (Bubble Sort) a mediánhoz
+// Fontos: Mindig a másolaton dolgozunk, hogy az időrendiség megmaradjon az eredetiben!
+void rendez() {
+  // 1. Másolat készítése
+  for(int j = 0; j < BUFFER_SIZE; j++) {
+    bufferCopy[j] = buffer[j];
+  }
+
+  // 2. Rendezés (Növekvő sorrend)
+  int tmp;
+  for(int i = 0; i < BUFFER_SIZE; i++) {
+    for(int j = i; j < BUFFER_SIZE; j++) {
+      if(bufferCopy[i] > bufferCopy[j]) {
+        tmp = bufferCopy[i];
+        bufferCopy[i] = bufferCopy[j];
+        bufferCopy[j] = tmp;
+      }
+    }
+  }
+}
+
+// ================================================================
+// 4. SZŰRÉS: ÁTLAG ÉS MEDIÁN
+// Kód forrás: 10. ora/sketch_nov12a
+// Elméleti háttér (Dia): 10. ora/tavolsagmero.pdf
+// ================================================================
+
+// Átlag számítása
+int makeAvg() {
+  long sum = 0;
+  for(byte i = 0; i < BUFFER_SIZE; i++) {
+    sum += buffer[i]; // Vagy bufferCopy, mindegy összegnél
+  }
+  return sum / BUFFER_SIZE;
+}
+
+// Medián lekérése (Rendezés után!)
+int getMedian() {
+  // A rendezett tömb középső eleme
+  return bufferCopy[BUFFER_SIZE/2];
+}
