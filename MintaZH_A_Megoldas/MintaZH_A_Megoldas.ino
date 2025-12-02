@@ -42,70 +42,34 @@
  *    - Tilos a delay() használata a loop()-on belül!
  */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
- 
-
 // --- MEGOLDÁS ---
 
-// Pin definíciók
+// C++ code
 #define GLED 3
 #define YLED 4
 #define RLED 5
-#define TRIG_PIN 9
-#define ECHO_PIN 10
+
+#define TRIG_PIN 7
+#define ECHO_PIN 7
 
 // Szűrő paraméterek
 #define BUFFER_SIZE 10
 int buffer[BUFFER_SIZE];
 int bufferCopy[BUFFER_SIZE];
 
+int inches = 0;
+int cm = 0;
+
 // 1. IDŐZÍTŐ LOGIKA
-typedef struct {
+struct Timer_s{
   unsigned long prevTime;
   int deltaTime;
-} Timer_s;
+};
 
 Timer_s BlinkTimer = { .prevTime = 0, .deltaTime = 500 };
 Timer_s MeasureTimer = { .prevTime = 0, .deltaTime = 100 }; // 100ms mérés
 
-unsigned char CheckTimer(Timer_s *timer) {
+unsigned char CheckTimer(struct Timer_s *timer) {
   unsigned long actTime = millis();
   if(actTime - timer->prevTime > timer->deltaTime) {
     timer->prevTime = actTime;
@@ -113,6 +77,7 @@ unsigned char CheckTimer(Timer_s *timer) {
   }
   return 0; 
 }
+
 
 // 2. ÁLLAPOTOK
 typedef enum {
@@ -123,19 +88,25 @@ typedef enum {
 
 State_e State = ST_NORMAL;
 
-// 3. SZŰRŐ FÜGGVÉNYEK
 
-void addData(int data) {
+// Új adat hozzáadása a tömbhöz (csúszóablak elv - "FIFO szerű")
+// A legrégebbi elem kiesik, az újak hátrébb csúsznak
+void addSimple(int data) {
   for(byte i = 0; i < BUFFER_SIZE-1; i++) {
     buffer[i] = buffer[i+1];
   }
   buffer[BUFFER_SIZE-1] = data;
 }
 
+// Buborékrendezés (Bubble Sort) a mediánhoz
+// Fontos: Mindig a másolaton dolgozunk, hogy az időrendiség megmaradjon az eredetiben!
 void rendez() {
+  // 1. Másolat készítése
   for(int j = 0; j < BUFFER_SIZE; j++) {
     bufferCopy[j] = buffer[j];
   }
+
+  // 2. Rendezés (Növekvő sorrend)
   int tmp;
   for(int i = 0; i < BUFFER_SIZE; i++) {
     for(int j = i; j < BUFFER_SIZE; j++) {
@@ -148,47 +119,49 @@ void rendez() {
   }
 }
 
+// Medián lekérése (Rendezés után! - Medián szűrőhöz)
 int getMedian() {
+  // A rendezett tömb középső eleme
   return bufferCopy[BUFFER_SIZE/2];
 }
 
-// 4. MÉRÉS (HC-SR04 logika)
-int measureDistance() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
 
-  long duration = pulseIn(ECHO_PIN, HIGH);
-  // Távolság = idő * sebesség (0.034 cm/us) / 2 (oda-vissza út)
-  int distance = duration * 0.034 / 2;
-  return distance;
+long readUltrasonicDistance(int triggerPin, int echoPin)
+{
+  pinMode(triggerPin, OUTPUT);  // Clear the trigger
+  digitalWrite(triggerPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigger pin to HIGH state for 10 microseconds
+  digitalWrite(triggerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(triggerPin, LOW);
+  pinMode(echoPin, INPUT);
+  // Reads the echo pin, and returns the sound wave travel time in microseconds
+  return pulseIn(echoPin, HIGH);
 }
 
-void setup() {
+void setup()
+{
   pinMode(GLED, OUTPUT);
   pinMode(YLED, OUTPUT);
   pinMode(RLED, OUTPUT);
   
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  
   Serial.begin(9600);
+  
   digitalWrite(GLED, HIGH);
 }
 
-void loop() {
-  
+void loop()
+{  
   if(CheckTimer(&MeasureTimer)) {
     // Mérés és Szűrés
-    int rawValue = measureDistance();
+    cm = 0.01723 * readUltrasonicDistance(7, 7);
     
-    addData(rawValue);
+    addSimple(cm);
     rendez();
     int filteredValue = getMedian();
     
-    Serial.print("Raw: "); Serial.print(rawValue);
+    Serial.print("Raw: "); Serial.print(cm);
     Serial.print(" cm | Filtered: "); Serial.println(filteredValue);
     
     // Állapotváltás (cm alapján)
@@ -216,7 +189,8 @@ void loop() {
        }
     }
   }
-
+  
+  
   // Állapot viselkedés
   switch (State) {
     case ST_NORMAL: break;
