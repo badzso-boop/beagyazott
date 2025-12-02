@@ -1,0 +1,17 @@
+f = 16mhz = 16.000 hz
+szamlalo = 2^8 - 1
+
+p = 1/16.000 -> 0.0000625
+
+secundum -> milisecundum -> microsecundum
+1 -> *1000 -> *1000
+0.0000625 -> 0.0625 -> 62.5
+
+szamlalo tulcsordulasa microsecundumban -> 62.5 * 255 = 15.937,5 
+
+durvan 20 milisecundumonkent van tulcsordulas, amikor tulcsordulas van akkor novelunk egy szamlalot. 
+Egy masodpercben 50x van meg a 20 milisecundum es igy lett egy 50 hertzes szamlalonk
+
+Ha allitani szeretnem a szamlalot akkor a szamlalo valtozonak nem 0-t adunk hanem mondjuk 125-t es 
+igy maris feleannyi ido alatt teljesiti a tulcsordulast. 
+Tehát már 25 hertzes számlálónk van
